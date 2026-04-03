@@ -1,19 +1,18 @@
 package com.technet.olttv
 
+import android.graphics.Paint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,7 +24,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,6 +34,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,7 +51,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Color(0xFF08111F)
                 ) {
-                    StableNativeMapApp()
+                    StableCanvasMapApp()
                 }
             }
         }
@@ -60,11 +59,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun StableNativeMapApp() {
+fun StableCanvasMapApp() {
     val loading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val responseState = remember { mutableStateOf<MapResponse?>(null) }
-    val selectedNodeId = remember { mutableStateOf<String?>(null) }
 
     suspend fun loadMap() {
         loading.value = true
@@ -81,9 +79,6 @@ fun StableNativeMapApp() {
         result
             .onSuccess { response ->
                 responseState.value = response
-                if (selectedNodeId.value == null) {
-                    selectedNodeId.value = response.map.nodes.firstOrNull()?.id
-                }
             }
             .onFailure { e ->
                 error.value = e.message ?: "Erro ao carregar mapa"
@@ -117,8 +112,7 @@ fun StableNativeMapApp() {
 
             responseState.value != null -> {
                 val map = responseState.value!!.map
-                val selectedNode = map.nodes.firstOrNull { it.id == selectedNodeId.value }
-                    ?: map.nodes.firstOrNull()
+                val firstNode = map.nodes.firstOrNull()
 
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -129,7 +123,7 @@ fun StableNativeMapApp() {
                         updatedAt = responseState.value!!.updated_at,
                         nodeCount = map.nodes.size,
                         linkCount = map.links.size,
-                        selectedNode = selectedNode,
+                        selectedNode = firstNode,
                         hasError = error.value != null
                     )
 
@@ -148,11 +142,7 @@ fun StableNativeMapApp() {
                             )
                             .padding(12.dp)
                     ) {
-                        StableMapView(
-                            data = map,
-                            selectedNodeId = selectedNode?.id,
-                            onSelectNode = { selectedNodeId.value = it }
-                        )
+                        UltraStableCanvasMap(data = map)
                     }
                 }
             }
@@ -249,10 +239,10 @@ fun LeftPanel(
         }
 
         InfoCard(
-            title = "Controles V1",
+            title = "V1 Ultraestável",
             lines = listOf(
-                "Toque/clique em um card do mapa",
-                "Seleciona o nó e mostra detalhes",
+                "Mapa desenhado direto no Canvas",
+                "Sem clique por enquanto",
                 "Atualização automática a cada 30s"
             )
         )
@@ -273,16 +263,14 @@ fun InfoCard(title: String, lines: List<String>) {
                 text = title,
                 color = Color.White,
                 fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                lineHeight = 22.sp
+                fontWeight = FontWeight.Bold
             )
 
             lines.forEach { line ->
                 Text(
                     text = line,
                     color = Color(0xFFBFDBFE),
-                    fontSize = 14.sp,
-                    lineHeight = 16.sp
+                    fontSize = 14.sp
                 )
             }
         }
@@ -290,99 +278,84 @@ fun InfoCard(title: String, lines: List<String>) {
 }
 
 @Composable
-fun StableMapView(
-    data: TvMapData,
-    selectedNodeId: String?,
-    onSelectNode: (String) -> Unit
-) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            data.links.forEach { link ->
-                val from = data.nodes.firstOrNull { it.id == link.from } ?: return@forEach
-                val to = data.nodes.firstOrNull { it.id == link.to } ?: return@forEach
+fun UltraStableCanvasMap(data: TvMapData) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val titlePaint = Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = 22f
+            isAntiAlias = true
+            isFakeBoldText = true
+        }
 
-                val lineColor = when (link.status.lowercase()) {
-                    "critical" -> Color(0xFFEF4444)
-                    "warning" -> Color(0xFFFACC15)
-                    else -> Color(0xFF3B82F6)
-                }
+        val subPaint = Paint().apply {
+            color = android.graphics.Color.rgb(147, 197, 253)
+            textSize = 18f
+            isAntiAlias = true
+        }
 
-                drawLine(
-                    color = lineColor,
-                    start = Offset(from.x, from.y),
-                    end = Offset(to.x, to.y),
-                    strokeWidth = 5f,
-                    cap = StrokeCap.Round
-                )
+        data.links.forEach { link ->
+            val from = data.nodes.firstOrNull { it.id == link.from } ?: return@forEach
+            val to = data.nodes.firstOrNull { it.id == link.to } ?: return@forEach
+
+            val lineColor = when (link.status.lowercase()) {
+                "critical" -> Color(0xFFEF4444)
+                "warning" -> Color(0xFFFACC15)
+                else -> Color(0xFF3B82F6)
             }
 
-            data.nodes.forEach { node ->
-                val isSelected = node.id == selectedNodeId
-
-                val fillColor = when (node.status.lowercase()) {
-                    "critical" -> Color(0xFF551B1B)
-                    "warning" -> Color(0xFF5A4316)
-                    else -> Color(0xFF0F172A)
-                }
-
-                val borderColor = when {
-                    isSelected -> Color(0xFF38BDF8)
-                    node.status.equals("critical", ignoreCase = true) -> Color(0xFFEF4444)
-                    node.status.equals("warning", ignoreCase = true) -> Color(0xFFFACC15)
-                    else -> Color(0xFF334155)
-                }
-
-                drawRoundRect(
-                    color = fillColor,
-                    topLeft = Offset(node.x - 95f, node.y - 36f),
-                    size = Size(190f, 72f),
-                    cornerRadius = CornerRadius(18f, 18f)
-                )
-
-                drawRoundRect(
-                    color = borderColor,
-                    topLeft = Offset(node.x - 95f, node.y - 36f),
-                    size = Size(190f, 72f),
-                    cornerRadius = CornerRadius(18f, 18f),
-                    style = Stroke(width = if (isSelected) 4f else 2f)
-                )
-            }
+            drawLine(
+                color = lineColor,
+                start = Offset(from.x, from.y),
+                end = Offset(to.x, to.y),
+                strokeWidth = 5f,
+                cap = StrokeCap.Round
+            )
         }
 
         data.nodes.forEach { node ->
-            Box(
-                modifier = Modifier
-                    .padding(start = (node.x - 95).dp, top = (node.y - 36).dp)
-                    .width(190.dp)
-                    .height(72.dp)
-                    .clickable { onSelectNode(node.id) }
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = node.title,
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        lineHeight = 11.sp,
-                        maxLines = 2,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = buildNodeSubtitle(node),
-                        color = when (node.status.lowercase()) {
-                            "critical" -> Color(0xFFFCA5A5)
-                            "warning" -> Color(0xFFFDE68A)
-                            else -> Color(0xFF93C5FD)
-                        },
-                        fontSize = 9.sp,
-                        lineHeight = 10.sp,
-                        maxLines = 1
-                    )
-                }
+            val fillColor = when (node.status.lowercase()) {
+                "critical" -> Color(0xFF551B1B)
+                "warning" -> Color(0xFF5A4316)
+                else -> Color(0xFF0F172A)
             }
+
+            val borderColor = when (node.status.lowercase()) {
+                "critical" -> Color(0xFFEF4444)
+                "warning" -> Color(0xFFFACC15)
+                else -> Color(0xFF334155)
+            }
+
+            val left = node.x - 95f
+            val top = node.y - 36f
+
+            drawRoundRect(
+                color = fillColor,
+                topLeft = Offset(left, top),
+                size = Size(190f, 72f),
+                cornerRadius = CornerRadius(18f, 18f)
+            )
+
+            drawRoundRect(
+                color = borderColor,
+                topLeft = Offset(left, top),
+                size = Size(190f, 72f),
+                cornerRadius = CornerRadius(18f, 18f),
+                style = Stroke(width = 2f)
+            )
+
+            drawContext.canvas.nativeCanvas.drawText(
+                shorten(node.title, 24),
+                left + 10f,
+                top + 24f,
+                titlePaint
+            )
+
+            drawContext.canvas.nativeCanvas.drawText(
+                shorten(buildNodeSubtitle(node), 28),
+                left + 10f,
+                top + 50f,
+                subPaint
+            )
         }
     }
 }
@@ -403,4 +376,9 @@ fun buildNodeSubtitle(node: TvNode): String {
     }
 
     return node.type
+}
+
+fun shorten(text: String, max: Int): String {
+    if (text.length <= max) return text
+    return text.take(max - 3) + "..."
 }
