@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Color(0xFF07111E)
                 ) {
-                    ZabbixSysmapTvV13()
+                    ZabbixSysmapTvV14()
                 }
             }
         }
@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ZabbixSysmapTvV13() {
+fun ZabbixSysmapTvV14() {
     val loading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val responseState = remember { mutableStateOf<MapResponse?>(null) }
@@ -100,19 +100,20 @@ fun ZabbixSysmapTvV13() {
             .background(
                 brush = Brush.verticalGradient(
                     listOf(
-                        Color(0xFF07111E),
-                        Color(0xFF09172D),
+                        Color(0xFF06101C),
+                        Color(0xFF0A1830),
                         Color(0xFF07111E)
                     )
                 )
             )
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         when {
             loading.value && responseState.value == null -> LoadingView()
             error.value != null && responseState.value == null -> ErrorView(error.value ?: "Erro desconhecido")
             responseState.value != null -> {
                 val map = responseState.value!!.map
+
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -130,12 +131,17 @@ fun ZabbixSysmapTvV13() {
                             .fillMaxWidth()
                             .weight(1f)
                             .background(
-                                color = Color(0x660B1325),
-                                shape = RoundedCornerShape(22.dp)
+                                brush = Brush.verticalGradient(
+                                    listOf(
+                                        Color(0xAA0B1325),
+                                        Color(0x880A1428)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(24.dp)
                             )
-                            .padding(6.dp)
+                            .padding(8.dp)
                     ) {
-                        ZabbixLikeMapViewport(map)
+                        ZabbixLikeMapViewportV14(map)
                     }
                 }
             }
@@ -154,28 +160,33 @@ fun CompactTopBar(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp),
-        shape = RoundedCornerShape(18.dp),
+            .height(78.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xCC0E1A31))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 20.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(
+                modifier = Modifier.padding(start = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 Text(
                     text = mapName,
                     color = Color.White,
                     fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
                 Text(
                     text = "Atualizado: $updatedAt",
                     color = Color(0xFFBFDBFE),
-                    fontSize = 13.sp
+                    fontSize = 13.sp,
+                    maxLines = 1
                 )
             }
 
@@ -192,7 +203,7 @@ fun CompactTopBar(
 fun MiniPill(label: String, value: String) {
     Box(
         modifier = Modifier
-            .background(Color(0xFF122543), RoundedCornerShape(14.dp))
+            .background(Color(0xFF143055), RoundedCornerShape(14.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -264,20 +275,20 @@ fun ErrorView(message: String) {
 }
 
 @Composable
-fun ZabbixLikeMapViewport(data: TvMapData) {
+fun ZabbixLikeMapViewportV14(data: TvMapData) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val canvasWidth = constraints.maxWidth.toFloat().coerceAtLeast(1f)
         val canvasHeight = constraints.maxHeight.toFloat().coerceAtLeast(1f)
 
-        // Base do sysmap exportado do Zabbix: 1300 x 900
         val sourceWidth = 1300f
         val sourceHeight = 900f
 
-        val paddingX = 40f
-        val paddingY = 24f
+        val paddingX = 26f
+        val paddingTop = 8f
+        val paddingBottom = 34f
 
         val usableWidth = (canvasWidth - paddingX * 2).coerceAtLeast(1f)
-        val usableHeight = (canvasHeight - paddingY * 2).coerceAtLeast(1f)
+        val usableHeight = (canvasHeight - paddingTop - paddingBottom).coerceAtLeast(1f)
 
         val scale = minOf(usableWidth / sourceWidth, usableHeight / sourceHeight)
 
@@ -285,17 +296,18 @@ fun ZabbixLikeMapViewport(data: TvMapData) {
         val contentHeight = sourceHeight * scale
 
         val offsetX = (canvasWidth - contentWidth) / 2f
-        val offsetY = (canvasHeight - contentHeight) / 2f
+        val offsetY = ((canvasHeight - contentHeight) / 2f) - 18f
 
         fun sx(x: Float): Float = offsetX + (x * scale)
         fun sy(y: Float): Float = offsetY + (y * scale)
 
-        val nodeWidth = (210f * scale.coerceIn(0.95f, 1.35f)).coerceIn(175f, 265f)
-        val nodeHeight = (74f * scale.coerceIn(0.95f, 1.35f)).coerceIn(62f, 94f)
-        val titleTextSize = (18f * scale.coerceIn(0.95f, 1.4f)).coerceIn(15f, 24f)
-        val subTextSize = (13f * scale.coerceIn(0.95f, 1.4f)).coerceIn(11f, 18f)
-        val lineStroke = (4.6f * scale.coerceIn(0.95f, 1.4f)).coerceIn(3.5f, 7f)
-        val borderStroke = (2.2f * scale.coerceIn(0.95f, 1.4f)).coerceIn(2f, 4f)
+        val nodeWidth = (230f * scale.coerceIn(1.0f, 1.45f)).coerceIn(190f, 295f)
+        val nodeHeight = (88f * scale.coerceIn(1.0f, 1.45f)).coerceIn(72f, 110f)
+        val titleTextSize = (19f * scale.coerceIn(1.0f, 1.4f)).coerceIn(15f, 24f)
+        val subTextSize = (13.5f * scale.coerceIn(1.0f, 1.4f)).coerceIn(11f, 18f)
+        val typeTextSize = (11f * scale.coerceIn(1.0f, 1.3f)).coerceIn(10f, 15f)
+        val lineStroke = (5.2f * scale.coerceIn(1.0f, 1.45f)).coerceIn(4f, 8f)
+        val borderStroke = (2.4f * scale.coerceIn(1.0f, 1.4f)).coerceIn(2f, 4f)
 
         Canvas(modifier = Modifier.fillMaxSize()) {
             val titlePaint = Paint().apply {
@@ -306,9 +318,16 @@ fun ZabbixLikeMapViewport(data: TvMapData) {
             }
 
             val subPaint = Paint().apply {
-                color = android.graphics.Color.rgb(220, 235, 255)
+                color = android.graphics.Color.rgb(221, 235, 255)
                 textSize = subTextSize
                 isAntiAlias = true
+            }
+
+            val typePaint = Paint().apply {
+                color = android.graphics.Color.rgb(147, 197, 253)
+                textSize = typeTextSize
+                isAntiAlias = true
+                isFakeBoldText = true
             }
 
             data.links.forEach { link ->
@@ -318,7 +337,7 @@ fun ZabbixLikeMapViewport(data: TvMapData) {
                 val lineColor = when (link.status.lowercase()) {
                     "critical" -> Color(0xFFFF5B5B)
                     "warning" -> Color(0xFFFACC15)
-                    else -> Color(0xFF3B82F6)
+                    else -> Color(0xFF59A7FF)
                 }
 
                 drawLine(
@@ -331,17 +350,7 @@ fun ZabbixLikeMapViewport(data: TvMapData) {
             }
 
             data.nodes.forEach { node ->
-                val fillColor = when (node.status.lowercase()) {
-                    "critical" -> Color(0xCC7F1D1D)
-                    "warning" -> Color(0xCC6B4F1D)
-                    else -> Color(0xCC0E172A)
-                }
-
-                val borderColor = when (node.status.lowercase()) {
-                    "critical" -> Color(0xFFFF7B7B)
-                    "warning" -> Color(0xFFFDE047)
-                    else -> Color(0xFF8BC5FF)
-                }
+                val colors = nodeStyle(node)
 
                 val cx = sx(node.x)
                 val cy = sy(node.y)
@@ -350,35 +359,98 @@ fun ZabbixLikeMapViewport(data: TvMapData) {
                 val top = cy - nodeHeight / 2f
 
                 drawRoundRect(
-                    color = fillColor,
+                    color = colors.fill,
                     topLeft = Offset(left, top),
                     size = Size(nodeWidth, nodeHeight),
-                    cornerRadius = CornerRadius(18f, 18f)
+                    cornerRadius = CornerRadius(20f, 20f)
                 )
 
                 drawRoundRect(
-                    color = borderColor,
+                    color = colors.border,
                     topLeft = Offset(left, top),
                     size = Size(nodeWidth, nodeHeight),
-                    cornerRadius = CornerRadius(18f, 18f),
+                    cornerRadius = CornerRadius(20f, 20f),
                     style = Stroke(width = borderStroke)
+                )
+
+                val badgeWidth = nodeWidth * 0.34f
+                val badgeHeight = nodeHeight * 0.22f
+
+                drawRoundRect(
+                    color = colors.badge,
+                    topLeft = Offset(left + 10f, top + 8f),
+                    size = Size(badgeWidth, badgeHeight),
+                    cornerRadius = CornerRadius(12f, 12f)
+                )
+
+                drawContext.canvas.nativeCanvas.drawText(
+                    node.type.uppercase(),
+                    left + 18f,
+                    top + badgeHeight + 3f,
+                    typePaint
                 )
 
                 drawContext.canvas.nativeCanvas.drawText(
                     shorten(node.title, adaptiveTitleLength(nodeWidth)),
                     left + 12f,
-                    top + nodeHeight * 0.37f,
+                    top + nodeHeight * 0.52f,
                     titlePaint
                 )
 
                 drawContext.canvas.nativeCanvas.drawText(
                     shorten(buildNodeSubtitle(node), adaptiveSubtitleLength(nodeWidth)),
                     left + 12f,
-                    top + nodeHeight * 0.72f,
+                    top + nodeHeight * 0.82f,
                     subPaint
                 )
             }
         }
+    }
+}
+
+data class NodeVisualStyle(
+    val fill: Color,
+    val border: Color,
+    val badge: Color
+)
+
+fun nodeStyle(node: TvNode): NodeVisualStyle {
+    return when {
+        node.status.equals("critical", ignoreCase = true) -> NodeVisualStyle(
+            fill = Color(0xCC7F1D1D),
+            border = Color(0xFFFF7B7B),
+            badge = Color(0x66FF7B7B)
+        )
+
+        node.status.equals("warning", ignoreCase = true) -> NodeVisualStyle(
+            fill = Color(0xCC6B4F1D),
+            border = Color(0xFFFDE047),
+            badge = Color(0x66FDE047)
+        )
+
+        node.type.equals("olt", ignoreCase = true) -> NodeVisualStyle(
+            fill = Color(0xCC0B1F3A),
+            border = Color(0xFF7DD3FC),
+            badge = Color(0x6638BDF8)
+        )
+
+        node.type.equals("concentrator", ignoreCase = true) -> NodeVisualStyle(
+            fill = Color(0xCC10233D),
+            border = Color(0xFF93C5FD),
+            badge = Color(0x665DADE2)
+        )
+
+        node.type.equals("switch", ignoreCase = true) -> NodeVisualStyle(
+            fill = Color(0xCC14253C),
+            border = Color(0xFFA5B4FC),
+            badge = Color(0x667C83FD)
+        )
+
+        else -> NodeVisualStyle(
+            fill = Color(0xCC0E172A),
+            border = Color(0xFF8BC5FF),
+            badge = Color(0x6659A7FF)
+        )
     }
 }
 
@@ -407,18 +479,18 @@ fun shorten(text: String, max: Int): String {
 
 fun adaptiveTitleLength(width: Float): Int {
     return when {
-        width >= 250f -> 34
-        width >= 220f -> 30
-        width >= 195f -> 27
+        width >= 270f -> 34
+        width >= 235f -> 30
+        width >= 205f -> 27
         else -> 24
     }
 }
 
 fun adaptiveSubtitleLength(width: Float): Int {
     return when {
-        width >= 250f -> 40
-        width >= 220f -> 34
-        width >= 195f -> 30
+        width >= 270f -> 40
+        width >= 235f -> 34
+        width >= 205f -> 30
         else -> 26
     }
 }
