@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -51,9 +50,9 @@ class MainActivity : ComponentActivity() {
             MaterialTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF08111F)
+                    color = Color(0xFF07111E)
                 ) {
-                    FullScreenMapApp()
+                    ZabbixSysmapTvV13()
                 }
             }
         }
@@ -61,15 +60,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun FullScreenMapApp() {
+fun ZabbixSysmapTvV13() {
     val loading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val responseState = remember { mutableStateOf<MapResponse?>(null) }
 
     suspend fun loadMap() {
-        loading.value = true
-        error.value = null
-
         val result = withContext(Dispatchers.IO) {
             try {
                 MapRepository().fetchMap()
@@ -79,11 +75,12 @@ fun FullScreenMapApp() {
         }
 
         result
-            .onSuccess { response ->
-                responseState.value = response
+            .onSuccess {
+                responseState.value = it
+                error.value = null
             }
-            .onFailure { e ->
-                error.value = e.message ?: "Erro ao carregar mapa"
+            .onFailure {
+                error.value = it.message ?: "Erro ao carregar mapa"
             }
 
         loading.value = false
@@ -101,33 +98,26 @@ fun FullScreenMapApp() {
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    colors = listOf(
+                brush = Brush.verticalGradient(
+                    listOf(
                         Color(0xFF07111E),
-                        Color(0xFF0A1630),
-                        Color(0xFF08111F)
+                        Color(0xFF09172D),
+                        Color(0xFF07111E)
                     )
                 )
             )
-            .padding(12.dp)
+            .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         when {
-            loading.value && responseState.value == null -> {
-                LoadingView()
-            }
-
-            error.value != null && responseState.value == null -> {
-                ErrorView(error.value ?: "Erro desconhecido")
-            }
-
+            loading.value && responseState.value == null -> LoadingView()
+            error.value != null && responseState.value == null -> ErrorView(error.value ?: "Erro desconhecido")
             responseState.value != null -> {
                 val map = responseState.value!!.map
-
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TopStatusBar(
+                    CompactTopBar(
                         mapName = map.name,
                         updatedAt = responseState.value!!.updated_at,
                         nodeCount = map.nodes.size,
@@ -139,18 +129,13 @@ fun FullScreenMapApp() {
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .border(
-                                width = 1.dp,
-                                color = Color(0xFF2D6BFF),
-                                shape = RoundedCornerShape(24.dp)
-                            )
                             .background(
-                                color = Color(0xFF081425),
-                                shape = RoundedCornerShape(24.dp)
+                                color = Color(0x660B1325),
+                                shape = RoundedCornerShape(22.dp)
                             )
-                            .padding(12.dp)
+                            .padding(6.dp)
                     ) {
-                        FullScreenAutoScaleMap(data = map)
+                        ZabbixLikeMapViewport(map)
                     }
                 }
             }
@@ -159,7 +144,7 @@ fun FullScreenMapApp() {
 }
 
 @Composable
-fun TopStatusBar(
+fun CompactTopBar(
     mapName: String,
     updatedAt: String,
     nodeCount: Int,
@@ -169,67 +154,57 @@ fun TopStatusBar(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(86.dp),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xCC0F1B33)
-        )
+            .height(72.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xCC0E1A31))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = mapName,
                     color = Color.White,
-                    fontSize = 24.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "Atualizado: $updatedAt",
                     color = Color(0xFFBFDBFE),
-                    fontSize = 14.sp
+                    fontSize = 13.sp
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                StatusPill("Nós", nodeCount.toString())
-                StatusPill("Links", linkCount.toString())
-                StatusPill("Status", if (hasError) "cache" else "online")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MiniPill("Nós", nodeCount.toString())
+                MiniPill("Links", linkCount.toString())
+                MiniPill("Status", if (hasError) "cache" else "online")
             }
         }
     }
 }
 
 @Composable
-fun StatusPill(label: String, value: String) {
+fun MiniPill(label: String, value: String) {
     Box(
         modifier = Modifier
-            .background(
-                color = Color(0xFF122543),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = Color(0xFF2B5CCF),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .background(Color(0xFF122543), RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = label,
                 color = Color(0xFF93C5FD),
-                fontSize = 12.sp
+                fontSize = 11.sp
             )
             Text(
                 text = value,
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -243,7 +218,7 @@ fun LoadingView() {
         contentAlignment = Alignment.Center
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             CircularProgressIndicator(color = Color.White)
@@ -263,51 +238,48 @@ fun ErrorView(message: String) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier
-                .background(Color(0xFF111827), RoundedCornerShape(24.dp))
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xCC111827))
         ) {
-            Text(
-                text = "Falha ao carregar mapa",
-                color = Color.White,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = message,
-                color = Color(0xFFFCA5A5),
-                fontSize = 18.sp
-            )
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Falha ao carregar mapa",
+                    color = Color.White,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = message,
+                    color = Color(0xFFFCA5A5),
+                    fontSize = 16.sp
+                )
+            }
         }
     }
 }
 
 @Composable
-fun FullScreenAutoScaleMap(data: TvMapData) {
+fun ZabbixLikeMapViewport(data: TvMapData) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val canvasWidth = constraints.maxWidth.toFloat().coerceAtLeast(1f)
         val canvasHeight = constraints.maxHeight.toFloat().coerceAtLeast(1f)
 
-        val minX = data.nodes.minOfOrNull { it.x } ?: 0f
-        val maxX = data.nodes.maxOfOrNull { it.x } ?: 100f
-        val minY = data.nodes.minOfOrNull { it.y } ?: 0f
-        val maxY = data.nodes.maxOfOrNull { it.y } ?: 100f
+        // Base do sysmap exportado do Zabbix: 1300 x 900
+        val sourceWidth = 1300f
+        val sourceHeight = 900f
 
-        val sourceWidth = (maxX - minX).coerceAtLeast(1f)
-        val sourceHeight = (maxY - minY).coerceAtLeast(1f)
+        val paddingX = 40f
+        val paddingY = 24f
 
-        val horizontalPadding = 90f
-        val verticalPadding = 70f
+        val usableWidth = (canvasWidth - paddingX * 2).coerceAtLeast(1f)
+        val usableHeight = (canvasHeight - paddingY * 2).coerceAtLeast(1f)
 
-        val availableWidth = (canvasWidth - horizontalPadding * 2).coerceAtLeast(1f)
-        val availableHeight = (canvasHeight - verticalPadding * 2).coerceAtLeast(1f)
-
-        val scaleX = availableWidth / sourceWidth
-        val scaleY = availableHeight / sourceHeight
-        val scale = minOf(scaleX, scaleY)
+        val scale = minOf(usableWidth / sourceWidth, usableHeight / sourceHeight)
 
         val contentWidth = sourceWidth * scale
         val contentHeight = sourceHeight * scale
@@ -315,15 +287,15 @@ fun FullScreenAutoScaleMap(data: TvMapData) {
         val offsetX = (canvasWidth - contentWidth) / 2f
         val offsetY = (canvasHeight - contentHeight) / 2f
 
-        fun sx(x: Float): Float = offsetX + ((x - minX) * scale)
-        fun sy(y: Float): Float = offsetY + ((y - minY) * scale)
+        fun sx(x: Float): Float = offsetX + (x * scale)
+        fun sy(y: Float): Float = offsetY + (y * scale)
 
-        val cardWidth = (220f * scale.coerceIn(0.9f, 1.8f)).coerceIn(190f, 340f)
-        val cardHeight = (82f * scale.coerceIn(0.9f, 1.6f)).coerceIn(76f, 130f)
-        val titleTextSize = (24f * scale.coerceIn(0.9f, 1.4f)).coerceIn(20f, 32f)
-        val subTextSize = (18f * scale.coerceIn(0.9f, 1.4f)).coerceIn(16f, 24f)
-        val lineStroke = (6f * scale.coerceIn(0.9f, 1.6f)).coerceIn(4f, 10f)
-        val borderStroke = (2.5f * scale.coerceIn(0.9f, 1.5f)).coerceIn(2f, 5f)
+        val nodeWidth = (210f * scale.coerceIn(0.95f, 1.35f)).coerceIn(175f, 265f)
+        val nodeHeight = (74f * scale.coerceIn(0.95f, 1.35f)).coerceIn(62f, 94f)
+        val titleTextSize = (18f * scale.coerceIn(0.95f, 1.4f)).coerceIn(15f, 24f)
+        val subTextSize = (13f * scale.coerceIn(0.95f, 1.4f)).coerceIn(11f, 18f)
+        val lineStroke = (4.6f * scale.coerceIn(0.95f, 1.4f)).coerceIn(3.5f, 7f)
+        val borderStroke = (2.2f * scale.coerceIn(0.95f, 1.4f)).coerceIn(2f, 4f)
 
         Canvas(modifier = Modifier.fillMaxSize()) {
             val titlePaint = Paint().apply {
@@ -334,7 +306,7 @@ fun FullScreenAutoScaleMap(data: TvMapData) {
             }
 
             val subPaint = Paint().apply {
-                color = android.graphics.Color.rgb(191, 219, 254)
+                color = android.graphics.Color.rgb(220, 235, 255)
                 textSize = subTextSize
                 isAntiAlias = true
             }
@@ -344,7 +316,7 @@ fun FullScreenAutoScaleMap(data: TvMapData) {
                 val to = data.nodes.firstOrNull { it.id == link.to } ?: return@forEach
 
                 val lineColor = when (link.status.lowercase()) {
-                    "critical" -> Color(0xFFFF4D4F)
+                    "critical" -> Color(0xFFFF5B5B)
                     "warning" -> Color(0xFFFACC15)
                     else -> Color(0xFF3B82F6)
                 }
@@ -362,47 +334,47 @@ fun FullScreenAutoScaleMap(data: TvMapData) {
                 val fillColor = when (node.status.lowercase()) {
                     "critical" -> Color(0xCC7F1D1D)
                     "warning" -> Color(0xCC6B4F1D)
-                    else -> Color(0xCC0F172A)
+                    else -> Color(0xCC0E172A)
                 }
 
                 val borderColor = when (node.status.lowercase()) {
-                    "critical" -> Color(0xFFFF6B6B)
+                    "critical" -> Color(0xFFFF7B7B)
                     "warning" -> Color(0xFFFDE047)
-                    else -> Color(0xFF60A5FA)
+                    else -> Color(0xFF8BC5FF)
                 }
 
-                val centerX = sx(node.x)
-                val centerY = sy(node.y)
+                val cx = sx(node.x)
+                val cy = sy(node.y)
 
-                val left = centerX - cardWidth / 2f
-                val top = centerY - cardHeight / 2f
+                val left = cx - nodeWidth / 2f
+                val top = cy - nodeHeight / 2f
 
                 drawRoundRect(
                     color = fillColor,
                     topLeft = Offset(left, top),
-                    size = Size(cardWidth, cardHeight),
-                    cornerRadius = CornerRadius(22f, 22f)
+                    size = Size(nodeWidth, nodeHeight),
+                    cornerRadius = CornerRadius(18f, 18f)
                 )
 
                 drawRoundRect(
                     color = borderColor,
                     topLeft = Offset(left, top),
-                    size = Size(cardWidth, cardHeight),
-                    cornerRadius = CornerRadius(22f, 22f),
+                    size = Size(nodeWidth, nodeHeight),
+                    cornerRadius = CornerRadius(18f, 18f),
                     style = Stroke(width = borderStroke)
                 )
 
                 drawContext.canvas.nativeCanvas.drawText(
-                    shorten(node.title, adaptiveTitleLength(cardWidth)),
-                    left + 14f,
-                    top + cardHeight * 0.38f,
+                    shorten(node.title, adaptiveTitleLength(nodeWidth)),
+                    left + 12f,
+                    top + nodeHeight * 0.37f,
                     titlePaint
                 )
 
                 drawContext.canvas.nativeCanvas.drawText(
-                    shorten(buildNodeSubtitle(node), adaptiveSubtitleLength(cardWidth)),
-                    left + 14f,
-                    top + cardHeight * 0.72f,
+                    shorten(buildNodeSubtitle(node), adaptiveSubtitleLength(nodeWidth)),
+                    left + 12f,
+                    top + nodeHeight * 0.72f,
                     subPaint
                 )
             }
@@ -433,20 +405,20 @@ fun shorten(text: String, max: Int): String {
     return text.take((max - 3).coerceAtLeast(1)) + "..."
 }
 
-fun adaptiveTitleLength(cardWidth: Float): Int {
+fun adaptiveTitleLength(width: Float): Int {
     return when {
-        cardWidth >= 320f -> 38
-        cardWidth >= 280f -> 33
-        cardWidth >= 240f -> 28
+        width >= 250f -> 34
+        width >= 220f -> 30
+        width >= 195f -> 27
         else -> 24
     }
 }
 
-fun adaptiveSubtitleLength(cardWidth: Float): Int {
+fun adaptiveSubtitleLength(width: Float): Int {
     return when {
-        cardWidth >= 320f -> 42
-        cardWidth >= 280f -> 36
-        cardWidth >= 240f -> 32
+        width >= 250f -> 40
+        width >= 220f -> 34
+        width >= 195f -> 30
         else -> 26
     }
 }
