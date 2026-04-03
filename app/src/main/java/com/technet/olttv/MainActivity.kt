@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,7 +52,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Color(0xFF08111F)
                 ) {
-                    StableCanvasMapApp()
+                    AutoScaleMapApp()
                 }
             }
         }
@@ -59,7 +60,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun StableCanvasMapApp() {
+fun AutoScaleMapApp() {
     val loading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val responseState = remember { mutableStateOf<MapResponse?>(null) }
@@ -133,7 +134,7 @@ fun StableCanvasMapApp() {
                             .fillMaxSize()
                             .border(
                                 width = 1.dp,
-                                color = Color(0xFF1E3A8A),
+                                color = Color(0xFF2563EB),
                                 shape = RoundedCornerShape(24.dp)
                             )
                             .background(
@@ -142,7 +143,7 @@ fun StableCanvasMapApp() {
                             )
                             .padding(12.dp)
                     ) {
-                        UltraStableCanvasMap(data = map)
+                        AutoScaleCanvasMap(data = map)
                     }
                 }
             }
@@ -239,10 +240,10 @@ fun LeftPanel(
         }
 
         InfoCard(
-            title = "V1 Ultraestável",
+            title = "V1.1 Autoescala",
             lines = listOf(
-                "Mapa desenhado direto no Canvas",
-                "Sem clique por enquanto",
+                "Mapa ajustado para o tamanho da TV",
+                "Centralização automática",
                 "Atualização automática a cada 30s"
             )
         )
@@ -278,84 +279,126 @@ fun InfoCard(title: String, lines: List<String>) {
 }
 
 @Composable
-fun UltraStableCanvasMap(data: TvMapData) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val titlePaint = Paint().apply {
-            color = android.graphics.Color.WHITE
-            textSize = 22f
-            isAntiAlias = true
-            isFakeBoldText = true
-        }
+fun AutoScaleCanvasMap(data: TvMapData) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val canvasWidth = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+        val canvasHeight = constraints.maxHeight.toFloat().coerceAtLeast(1f)
 
-        val subPaint = Paint().apply {
-            color = android.graphics.Color.rgb(147, 197, 253)
-            textSize = 18f
-            isAntiAlias = true
-        }
+        val minX = data.nodes.minOfOrNull { it.x } ?: 0f
+        val maxX = data.nodes.maxOfOrNull { it.x } ?: 100f
+        val minY = data.nodes.minOfOrNull { it.y } ?: 0f
+        val maxY = data.nodes.maxOfOrNull { it.y } ?: 100f
 
-        data.links.forEach { link ->
-            val from = data.nodes.firstOrNull { it.id == link.from } ?: return@forEach
-            val to = data.nodes.firstOrNull { it.id == link.to } ?: return@forEach
+        val sourceWidth = (maxX - minX).coerceAtLeast(1f)
+        val sourceHeight = (maxY - minY).coerceAtLeast(1f)
 
-            val lineColor = when (link.status.lowercase()) {
-                "critical" -> Color(0xFFEF4444)
-                "warning" -> Color(0xFFFACC15)
-                else -> Color(0xFF3B82F6)
+        val horizontalPadding = 120f
+        val verticalPadding = 100f
+
+        val availableWidth = (canvasWidth - horizontalPadding * 2).coerceAtLeast(1f)
+        val availableHeight = (canvasHeight - verticalPadding * 2).coerceAtLeast(1f)
+
+        val scaleX = availableWidth / sourceWidth
+        val scaleY = availableHeight / sourceHeight
+        val scale = minOf(scaleX, scaleY)
+
+        val contentWidth = sourceWidth * scale
+        val contentHeight = sourceHeight * scale
+
+        val offsetX = (canvasWidth - contentWidth) / 2f
+        val offsetY = (canvasHeight - contentHeight) / 2f
+
+        fun sx(x: Float): Float = offsetX + ((x - minX) * scale)
+        fun sy(y: Float): Float = offsetY + ((y - minY) * scale)
+
+        val cardWidth = (190f * scale.coerceIn(0.8f, 1.8f)).coerceIn(180f, 320f)
+        val cardHeight = (72f * scale.coerceIn(0.8f, 1.6f)).coerceIn(70f, 120f)
+        val titleTextSize = (22f * scale.coerceIn(0.8f, 1.4f)).coerceIn(20f, 30f)
+        val subTextSize = (18f * scale.coerceIn(0.8f, 1.4f)).coerceIn(16f, 24f)
+        val lineStroke = (5f * scale.coerceIn(0.8f, 1.5f)).coerceIn(4f, 8f)
+        val borderStroke = (2f * scale.coerceIn(0.8f, 1.5f)).coerceIn(2f, 4f)
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val titlePaint = Paint().apply {
+                color = android.graphics.Color.WHITE
+                textSize = titleTextSize
+                isAntiAlias = true
+                isFakeBoldText = true
             }
 
-            drawLine(
-                color = lineColor,
-                start = Offset(from.x, from.y),
-                end = Offset(to.x, to.y),
-                strokeWidth = 5f,
-                cap = StrokeCap.Round
-            )
-        }
-
-        data.nodes.forEach { node ->
-            val fillColor = when (node.status.lowercase()) {
-                "critical" -> Color(0xFF551B1B)
-                "warning" -> Color(0xFF5A4316)
-                else -> Color(0xFF0F172A)
+            val subPaint = Paint().apply {
+                color = android.graphics.Color.rgb(147, 197, 253)
+                textSize = subTextSize
+                isAntiAlias = true
             }
 
-            val borderColor = when (node.status.lowercase()) {
-                "critical" -> Color(0xFFEF4444)
-                "warning" -> Color(0xFFFACC15)
-                else -> Color(0xFF334155)
+            data.links.forEach { link ->
+                val from = data.nodes.firstOrNull { it.id == link.from } ?: return@forEach
+                val to = data.nodes.firstOrNull { it.id == link.to } ?: return@forEach
+
+                val lineColor = when (link.status.lowercase()) {
+                    "critical" -> Color(0xFFEF4444)
+                    "warning" -> Color(0xFFFACC15)
+                    else -> Color(0xFF3B82F6)
+                }
+
+                drawLine(
+                    color = lineColor,
+                    start = Offset(sx(from.x), sy(from.y)),
+                    end = Offset(sx(to.x), sy(to.y)),
+                    strokeWidth = lineStroke,
+                    cap = StrokeCap.Round
+                )
             }
 
-            val left = node.x - 95f
-            val top = node.y - 36f
+            data.nodes.forEach { node ->
+                val fillColor = when (node.status.lowercase()) {
+                    "critical" -> Color(0xFF551B1B)
+                    "warning" -> Color(0xFF5A4316)
+                    else -> Color(0xFF0F172A)
+                }
 
-            drawRoundRect(
-                color = fillColor,
-                topLeft = Offset(left, top),
-                size = Size(190f, 72f),
-                cornerRadius = CornerRadius(18f, 18f)
-            )
+                val borderColor = when (node.status.lowercase()) {
+                    "critical" -> Color(0xFFEF4444)
+                    "warning" -> Color(0xFFFACC15)
+                    else -> Color(0xFF334155)
+                }
 
-            drawRoundRect(
-                color = borderColor,
-                topLeft = Offset(left, top),
-                size = Size(190f, 72f),
-                cornerRadius = CornerRadius(18f, 18f),
-                style = Stroke(width = 2f)
-            )
+                val centerX = sx(node.x)
+                val centerY = sy(node.y)
 
-            drawContext.canvas.nativeCanvas.drawText(
-                shorten(node.title, 24),
-                left + 10f,
-                top + 24f,
-                titlePaint
-            )
+                val left = centerX - cardWidth / 2f
+                val top = centerY - cardHeight / 2f
 
-            drawContext.canvas.nativeCanvas.drawText(
-                shorten(buildNodeSubtitle(node), 28),
-                left + 10f,
-                top + 50f,
-                subPaint
-            )
+                drawRoundRect(
+                    color = fillColor,
+                    topLeft = Offset(left, top),
+                    size = Size(cardWidth, cardHeight),
+                    cornerRadius = CornerRadius(20f, 20f)
+                )
+
+                drawRoundRect(
+                    color = borderColor,
+                    topLeft = Offset(left, top),
+                    size = Size(cardWidth, cardHeight),
+                    cornerRadius = CornerRadius(20f, 20f),
+                    style = Stroke(width = borderStroke)
+                )
+
+                drawContext.canvas.nativeCanvas.drawText(
+                    shorten(node.title, adaptiveTitleLength(cardWidth)),
+                    left + 12f,
+                    top + cardHeight * 0.36f,
+                    titlePaint
+                )
+
+                drawContext.canvas.nativeCanvas.drawText(
+                    shorten(buildNodeSubtitle(node), adaptiveSubtitleLength(cardWidth)),
+                    left + 12f,
+                    top + cardHeight * 0.72f,
+                    subPaint
+                )
+            }
         }
     }
 }
@@ -380,5 +423,23 @@ fun buildNodeSubtitle(node: TvNode): String {
 
 fun shorten(text: String, max: Int): String {
     if (text.length <= max) return text
-    return text.take(max - 3) + "..."
+    return text.take((max - 3).coerceAtLeast(1)) + "..."
+}
+
+fun adaptiveTitleLength(cardWidth: Float): Int {
+    return when {
+        cardWidth >= 300f -> 34
+        cardWidth >= 260f -> 30
+        cardWidth >= 220f -> 26
+        else -> 22
+    }
+}
+
+fun adaptiveSubtitleLength(cardWidth: Float): Int {
+    return when {
+        cardWidth >= 300f -> 38
+        cardWidth >= 260f -> 34
+        cardWidth >= 220f -> 30
+        else -> 24
+    }
 }
