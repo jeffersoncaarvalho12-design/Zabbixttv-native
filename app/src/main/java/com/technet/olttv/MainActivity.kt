@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Color(0xFF07111E)
                 ) {
-                    ZabbixSysmapTvV14()
+                    ZabbixSysmapTvV15()
                 }
             }
         }
@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ZabbixSysmapTvV14() {
+fun ZabbixSysmapTvV15() {
     val loading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val responseState = remember { mutableStateOf<MapResponse?>(null) }
@@ -141,7 +141,7 @@ fun ZabbixSysmapTvV14() {
                             )
                             .padding(8.dp)
                     ) {
-                        ZabbixLikeMapViewportV14(map)
+                        ZabbixLikeMapViewportV15(map)
                     }
                 }
             }
@@ -275,7 +275,7 @@ fun ErrorView(message: String) {
 }
 
 @Composable
-fun ZabbixLikeMapViewportV14(data: TvMapData) {
+fun ZabbixLikeMapViewportV15(data: TvMapData) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val canvasWidth = constraints.maxWidth.toFloat().coerceAtLeast(1f)
         val canvasHeight = constraints.maxHeight.toFloat().coerceAtLeast(1f)
@@ -283,9 +283,9 @@ fun ZabbixLikeMapViewportV14(data: TvMapData) {
         val sourceWidth = 1300f
         val sourceHeight = 900f
 
-        val paddingX = 26f
-        val paddingTop = 8f
-        val paddingBottom = 34f
+        val paddingX = 22f
+        val paddingTop = 4f
+        val paddingBottom = 26f
 
         val usableWidth = (canvasWidth - paddingX * 2).coerceAtLeast(1f)
         val usableHeight = (canvasHeight - paddingTop - paddingBottom).coerceAtLeast(1f)
@@ -296,18 +296,18 @@ fun ZabbixLikeMapViewportV14(data: TvMapData) {
         val contentHeight = sourceHeight * scale
 
         val offsetX = (canvasWidth - contentWidth) / 2f
-        val offsetY = ((canvasHeight - contentHeight) / 2f) - 18f
+        val offsetY = ((canvasHeight - contentHeight) / 2f) - 26f
 
         fun sx(x: Float): Float = offsetX + (x * scale)
         fun sy(y: Float): Float = offsetY + (y * scale)
 
-        val nodeWidth = (230f * scale.coerceIn(1.0f, 1.45f)).coerceIn(190f, 295f)
-        val nodeHeight = (88f * scale.coerceIn(1.0f, 1.45f)).coerceIn(72f, 110f)
-        val titleTextSize = (19f * scale.coerceIn(1.0f, 1.4f)).coerceIn(15f, 24f)
-        val subTextSize = (13.5f * scale.coerceIn(1.0f, 1.4f)).coerceIn(11f, 18f)
-        val typeTextSize = (11f * scale.coerceIn(1.0f, 1.3f)).coerceIn(10f, 15f)
-        val lineStroke = (5.2f * scale.coerceIn(1.0f, 1.45f)).coerceIn(4f, 8f)
-        val borderStroke = (2.4f * scale.coerceIn(1.0f, 1.4f)).coerceIn(2f, 4f)
+        val nodeWidth = (245f * scale.coerceIn(1.0f, 1.55f)).coerceIn(205f, 310f)
+        val nodeHeight = (94f * scale.coerceIn(1.0f, 1.45f)).coerceIn(76f, 118f)
+        val titleTextSize = (20f * scale.coerceIn(1.0f, 1.45f)).coerceIn(16f, 25f)
+        val subTextSize = (14f * scale.coerceIn(1.0f, 1.45f)).coerceIn(11f, 18f)
+        val typeTextSize = (11.5f * scale.coerceIn(1.0f, 1.35f)).coerceIn(10f, 15f)
+        val lineStroke = (5.4f * scale.coerceIn(1.0f, 1.45f)).coerceIn(4f, 8.5f)
+        val borderStroke = (2.5f * scale.coerceIn(1.0f, 1.45f)).coerceIn(2f, 4f)
 
         Canvas(modifier = Modifier.fillMaxSize()) {
             val titlePaint = Paint().apply {
@@ -349,11 +349,26 @@ fun ZabbixLikeMapViewportV14(data: TvMapData) {
                 )
             }
 
-            data.nodes.forEach { node ->
+            data.nodes.forEachIndexed { index, node ->
                 val colors = nodeStyle(node)
 
-                val cx = sx(node.x)
-                val cy = sy(node.y)
+                var cx = sx(node.x)
+                var cy = sy(node.y)
+
+                if (index == 0) cx -= 38f
+                if (index == 1) cx -= 12f
+                if (index == 2) cx += 18f
+                if (index == 3) cx += 42f
+
+                if (node.id == "conc_bv") cy += 6f
+                if (node.id == "olt_pon1") {
+                    cx -= 24f
+                    cy += 16f
+                }
+                if (node.id == "olt_pon2") {
+                    cx += 24f
+                    cy += 16f
+                }
 
                 val left = cx - nodeWidth / 2f
                 val top = cy - nodeHeight / 2f
@@ -373,8 +388,8 @@ fun ZabbixLikeMapViewportV14(data: TvMapData) {
                     style = Stroke(width = borderStroke)
                 )
 
-                val badgeWidth = nodeWidth * 0.34f
-                val badgeHeight = nodeHeight * 0.22f
+                val badgeWidth = nodeWidth * 0.30f
+                val badgeHeight = nodeHeight * 0.20f
 
                 drawRoundRect(
                     color = colors.badge,
@@ -393,14 +408,14 @@ fun ZabbixLikeMapViewportV14(data: TvMapData) {
                 drawContext.canvas.nativeCanvas.drawText(
                     shorten(node.title, adaptiveTitleLength(nodeWidth)),
                     left + 12f,
-                    top + nodeHeight * 0.52f,
+                    top + nodeHeight * 0.54f,
                     titlePaint
                 )
 
                 drawContext.canvas.nativeCanvas.drawText(
                     shorten(buildNodeSubtitle(node), adaptiveSubtitleLength(nodeWidth)),
                     left + 12f,
-                    top + nodeHeight * 0.82f,
+                    top + nodeHeight * 0.84f,
                     subPaint
                 )
             }
@@ -479,18 +494,18 @@ fun shorten(text: String, max: Int): String {
 
 fun adaptiveTitleLength(width: Float): Int {
     return when {
-        width >= 270f -> 34
-        width >= 235f -> 30
-        width >= 205f -> 27
+        width >= 285f -> 36
+        width >= 245f -> 32
+        width >= 215f -> 28
         else -> 24
     }
 }
 
 fun adaptiveSubtitleLength(width: Float): Int {
     return when {
-        width >= 270f -> 40
-        width >= 235f -> 34
-        width >= 205f -> 30
+        width >= 285f -> 42
+        width >= 245f -> 36
+        width >= 215f -> 31
         else -> 26
     }
 }
